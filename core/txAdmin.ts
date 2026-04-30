@@ -13,6 +13,7 @@ import Metrics from '@modules/Metrics';
 import Translator from '@modules/Translator';
 import WebServer from '@modules/WebServer';
 import FxResources from '@modules/FxResources';
+import ResourceWatcher from '@modules/ResourceWatcher';
 import FxPlayerlist from '@modules/FxPlayerlist';
 import Database from '@modules/Database';
 import CacheStore from '@modules/CacheStore';
@@ -35,6 +36,7 @@ export type TxCoreType = {
     fxResources: FxResources;
     fxRunner: FxRunner;
     fxScheduler: FxScheduler;
+    resourceWatcher: ResourceWatcher;
 
     //Other
     discordBot: DiscordBot;
@@ -105,6 +107,7 @@ export default function bootTxAdmin() {
     _txCore.fxResources = startModule(FxResources);
     _txCore.fxPlayerlist = startModule(FxPlayerlist);
     _txCore.cacheStore = startModule(CacheStore);
+    _txCore.resourceWatcher = startModule(ResourceWatcher);
 
     //Very Low Priority
     _txCore.updateChecker = startModule(UpdateChecker);

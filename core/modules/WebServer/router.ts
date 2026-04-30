@@ -113,6 +113,10 @@ export default () => {
     router.get('/whitelist/:table', apiAuthMw, routes.whitelist_list);
     router.post('/whitelist/:table/:action', apiAuthMw, routes.whitelist_actions);
 
+    //Resources routes
+    router.get('/resources/watchers', apiAuthMw, routes.resources_getWatchers);
+    router.post('/resources/watchers/:resourceName', apiAuthMw, routes.resources_setWatcher);
+
     //Host routes
     router.get('/host/status', hostAuthMw, routes.host_status);
 

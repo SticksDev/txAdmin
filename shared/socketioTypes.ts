@@ -2,6 +2,7 @@ import { SvRtPerfThreadNamesType } from "@core/modules/Metrics/svRuntime/config"
 import { SvRtNodeMemoryType, SvRtPerfBoundariesType } from "@core/modules/Metrics/svRuntime/perfSchemas";
 import type { ReactAuthDataType } from "./authApiTypes";
 import type { UpdateDataType } from "./otherTypes";
+import type { ResourcesRoomEventData } from "./resourcesApiTypes";
 import { DiscordBotStatus, TxConfigState, type FxMonitorHealth } from "./enums";
 
 /**
@@ -112,6 +113,7 @@ export type ListenEventsMap = {
     updateAuthData: (authData: ReactAuthDataType) => void;
     consoleData: (data: string) => void;
     dashboard: (data: DashboardDataEventType) => void;
+    resources: (data: ResourcesRoomEventData) => void;
 
     //Standalone events
     updateAvailable: (event: UpdateAvailableEventType) => void

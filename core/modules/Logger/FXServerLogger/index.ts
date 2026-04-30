@@ -9,7 +9,6 @@ import ConsoleLineEnum from './ConsoleLineEnum.js';
 import { txHostConfig } from '@core/globalData.js';
 const console = consoleFactory(modulename);
 
-
 //This regex was done in the first place to prevent fxserver output to be interpreted as txAdmin output by the host terminal
 //IIRC the issue was that one user with a TM on their nick was making txAdmin's console to close or freeze. I couldn't reproduce the issue.
 // \x00-\x08 Control characters in the ASCII table.
@@ -19,9 +18,9 @@ const console = consoleFactory(modulename);
 // \x1C-\x1F Control characters (file separator, group separator, record separator, unit separator).
 // allow all printable
 // \x7F Delete character.
-const regexControls = /[\x00-\x08\x0B-\x1A\x1C-\x1F\x7F]|(?:\x1B\[|\x9B)[\d;]+[@-K]/g;
+const regexControls =
+    /[\x00-\x08\x0B-\x1A\x1C-\x1F\x7F]|(?:\x1B\[|\x9B)[\d;]+[@-K]/g;
 const regexColors = /\x1B[^m]*?m/g;
-
 
 export default class FXServerLogger extends LoggerBase {
     private readonly transformer = new ConsoleTransformer();
@@ -48,7 +47,6 @@ export default class FXServerLogger extends LoggerBase {
         }, 5000);
     }
 
-
     /**
      * Returns a string with short usage stats
      */
@@ -59,7 +57,6 @@ export default class FXServerLogger extends LoggerBase {
         };
     }
 
-
     /**
      * Returns the recent fxserver buffer containing HTML markers, and not XSS escaped.
      * The size of this buffer is usually above 64kb, never above 128kb.
@@ -68,10 +65,9 @@ export default class FXServerLogger extends LoggerBase {
         return this.recentBuffer;
     }
 
-
     /**
      * Strips color of the file buffer and flushes it.
-     * FIXME: this will still allow colors to be written to the file if the buffer cuts 
+     * FIXME: this will still allow colors to be written to the file if the buffer cuts
      * in the middle of a color sequence, but less often since we are buffering more data.
      */
     flushFileBuffer() {
@@ -79,14 +75,14 @@ export default class FXServerLogger extends LoggerBase {
         this.fileBuffer = '';
     }
 
-
     /**
      * Receives the assembled console blocks, stringifies, marks, colors them and dispatches it to
      * lrStream, websocket, and process stdout.
      */
     private ingest(type: ConsoleLineEnum, data: string, context?: string) {
         //Process the data
-        const { webBuffer, stdoutBuffer, fileBuffer } = this.transformer.process(type, data, context);
+        const { webBuffer, stdoutBuffer, fileBuffer } =
+            this.transformer.process(type, data, context);
 
         //To file
         this.fileBuffer += fileBuffer;
@@ -101,7 +97,6 @@ export default class FXServerLogger extends LoggerBase {
         this.appendRecent(webBuffer);
     }
 
-
     /**
      * Writes to the log an informational message
      */
@@ -109,6 +104,9 @@ export default class FXServerLogger extends LoggerBase {
         this.ingest(ConsoleLineEnum.MarkerInfo, msg + '\n');
     }
 
+    public logWarning(msg: string) {
+        this.ingest(ConsoleLineEnum.MarkerWarning, msg + '\n');
+    }
 
     /**
      * Writes to the log that the server is booting
@@ -127,7 +125,6 @@ export default class FXServerLogger extends LoggerBase {
         }
     }
 
-
     /**
      * Writes to the log an admin command
      */
@@ -135,12 +132,11 @@ export default class FXServerLogger extends LoggerBase {
         this.ingest(ConsoleLineEnum.MarkerAdminCmd, cmd + '\n', author);
     }
 
-
     /**
      * Writes to the log a system command.
      */
     public logSystemCommand(cmd: string) {
-        if(cmd.startsWith('txaEvent "consoleCommand"')) return;
+        if (cmd.startsWith('txaEvent "consoleCommand"')) return;
         // if (/^txaEvent \w+ /.test(cmd)) {
         //     const [event, payload] = cmd.substring(9).split(' ', 2);
         //     cmd = chalk.italic(`<broadcasting txAdmin:events:${event}>`);
@@ -148,13 +144,12 @@ export default class FXServerLogger extends LoggerBase {
         this.ingest(ConsoleLineEnum.MarkerSystemCmd, cmd + '\n');
     }
 
-
     /**
      * Handles all stdio data.
      */
     public writeFxsOutput(
         source: ConsoleLineEnum.StdOut | ConsoleLineEnum.StdErr,
-        data: string | Buffer
+        data: string | Buffer,
     ) {
         if (typeof data !== 'string') {
             data = data.toString();
@@ -162,15 +157,18 @@ export default class FXServerLogger extends LoggerBase {
         this.ingest(source, data.replace(regexControls, ''));
     }
 
-
     /**
      * Appends data to the recent buffer and recycles it when necessary
      */
     private appendRecent(data: string) {
         this.recentBuffer += data;
         if (this.recentBuffer.length > this.recentBufferMaxSize) {
-            this.recentBuffer = this.recentBuffer.slice(this.recentBufferTrimSliceSize - this.recentBufferMaxSize);
-            this.recentBuffer = this.recentBuffer.substring(this.recentBuffer.indexOf('\n'));
+            this.recentBuffer = this.recentBuffer.slice(
+                this.recentBufferTrimSliceSize - this.recentBufferMaxSize,
+            );
+            this.recentBuffer = this.recentBuffer.substring(
+                this.recentBuffer.indexOf('\n'),
+            );
             //FIXME: precisa encontrar o próximo tsMarker ao invés de \n
             //usar String.prototype.search() com regex
 
@@ -178,4 +176,4 @@ export default class FXServerLogger extends LoggerBase {
             // quando atingir 32, quebrar no primeiro tsMarker
         }
     }
-};
+}

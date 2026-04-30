@@ -5,6 +5,7 @@ enum ConsoleLineEnum {
     MarkerAdminCmd,
     MarkerSystemCmd,
     MarkerInfo,
+    MarkerWarning,
 }
 
 export default ConsoleLineEnum;

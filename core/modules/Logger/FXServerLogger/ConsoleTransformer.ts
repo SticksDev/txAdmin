@@ -28,6 +28,7 @@ const chalkToStr = (color: ChalkInstance) => color('\x00').split('\x00')[0];
 const precalcMarkerAdminCmd = chalkToStr(chalk.bgAnsi256(180).black);
 const precalcMarkerSystemCmd = chalkToStr(chalk.bgAnsi256(237).ansi256(252));
 const precalcMarkerInfo = chalkToStr(chalk.bgBlueBright.black);
+const precalcMarkerWarning = chalkToStr(chalk.bgYellow.black);
 const ANSI_RESET = '\x1B[0m';
 const ANSI_ERASE_LINE = '\x1b[K';
 
@@ -65,6 +66,16 @@ const STYLES = {
         stdout: {
             prefix: chalk.bgBlueBright.black,
             line: chalk.bgBlueBright.black,
+        },
+    },
+    [ConsoleLineEnum.MarkerWarning]: {
+        web: {
+            prefix: chalk.bold,
+            line: x => `${precalcMarkerWarning}${x}${ANSI_ERASE_LINE}${ANSI_RESET}`,
+        },
+        stdout: {
+            prefix: chalk.bgYellow.black,
+            line: chalk.bgYellow.black,
         },
     },
 } as StylesLibrary;
@@ -189,6 +200,8 @@ export default class ConsoleTransformer {
         } else if (type === ConsoleLineEnum.MarkerSystemCmd) {
             prefix = this.PREFIX_SYSTEM;
         } else if (type === ConsoleLineEnum.MarkerInfo) {
+            prefix = this.PREFIX_SYSTEM;
+        } else if (type === ConsoleLineEnum.MarkerWarning) {
             prefix = this.PREFIX_SYSTEM;
         }
 

@@ -71,6 +71,8 @@ export { default as serverLogPartial } from './serverLogPartial.js';
 
 export { default as host_status } from './hostStatus';
 
+export { getWatchers as resources_getWatchers, setWatcher as resources_setWatcher } from './resources/watcherActions';
+
 export {
     get as dev_get,
     post as dev_post,

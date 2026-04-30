@@ -6,6 +6,7 @@ import dashboardRoom from './wsRooms/dashboard';
 import playerlistRoom from './wsRooms/playerlist';
 import liveconsoleRoom from './wsRooms/liveconsole';
 import serverlogRoom from './wsRooms/serverlog';
+import resourcesRoom from './wsRooms/resources';
 import { AuthedAdminType, checkRequestAuth } from './authLogic';
 import { SocketWithSession } from './ctxTypes';
 import { isIpAddressLocal } from '@lib/host/isIpAddressLocal';
@@ -28,7 +29,7 @@ export type RoomType = {
 }
 
 //NOTE: quen adding multiserver, create dynamic rooms like playerlist#<svname>
-const VALID_ROOMS = ['status', 'dashboard', 'liveconsole', 'serverlog', 'playerlist'] as const;
+const VALID_ROOMS = ['status', 'dashboard', 'liveconsole', 'serverlog', 'playerlist', 'resources'] as const;
 type RoomNames = typeof VALID_ROOMS[number];
 
 
@@ -71,6 +72,7 @@ export default class WebSocket {
             playerlist: playerlistRoom,
             liveconsole: liveconsoleRoom,
             serverlog: serverlogRoom,
+            resources: resourcesRoom,
         };
 
         setInterval(this.flushBuffers.bind(this), 250);

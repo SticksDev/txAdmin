@@ -21,6 +21,7 @@ import SettingsPage from "@/pages/Settings/SettingsPage";
 import UnauthorizedPage from "@/pages/UnauthorizedPage";
 import DiagnosticsPage from "@/pages/Diagnostics/DiagnosticsPage";
 import AdvancedPage from "@/pages/AdvancedPage";
+import ResourcesPage from "@/pages/Resources/ResourcesPage";
 
 
 type RouteType = {
@@ -102,7 +103,7 @@ const allRoutes: RouteType[] = [
     {
         path: '/server/resources',
         title: 'Resources',
-        Page: <Iframe legacyUrl="resources" />
+        Page: <ResourcesPage />
     },
     {
         path: '/server/server-log',

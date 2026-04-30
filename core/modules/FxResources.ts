@@ -1,7 +1,11 @@
 const modulename = 'FxResources';
+import fs from 'node:fs';
+import path from 'node:path';
 import { cloneDeep } from 'lodash-es';
 import consoleFactory from '@lib/console';
+import { SYM_SYSTEM_AUTHOR } from '@lib/symbols';
 import { Stopwatch } from './FxMonitor/utils';
+import type { ResourceItem, ResourcesRoomEventData } from '@shared/resourcesApiTypes';
 const console = consoleFactory(modulename);
 
 
@@ -34,27 +38,35 @@ type ResBootLogEntry = {
 
 
 /**
- * Module responsible to track FXServer resource states.  
- * NOTE: currently it is not tracking the state during runtime, and it is just being used
- * to assist with tracking the boot process.
+ * Module responsible for tracking FXServer resource states.
+ * Maintains a stateful map of all resources, updated via:
+ * - Full list from the intercom (txaReportResources response)
+ * - Individual start/stop events from FD3
  */
 export default class FxResources {
+    // Legacy: kept for the resources.js legacy page
     public resourceReport?: ResourceReportType;
+
+    // Stateful resource map: name -> ResourceItem
+    private resourceMap = new Map<string, ResourceItem>();
+
+    // Boot tracking
     private resBooting: ResPendingStartState | null = null;
     private resBootLog: ResBootLogEntry[] = [];
     private prevBootLog: ResBootLogEntry[] | null = null;
 
 
     /**
-     * Reset boot state on server close
+     * Reset state on server close
      */
     handleServerClose() {
-        //Save the previous boot log
         if (this.resBootLog.length > 0) {
             this.prevBootLog = this.resBootLog;
         }
         this.resBootLog = [];
         this.resBooting = null;
+        this.resourceMap.clear();
+        this.pushSocketData();
     }
 
 
@@ -63,16 +75,23 @@ export default class FxResources {
      */
     handleServerEvents(payload: ResourceEventType, mutex: string) {
         const { resource, event } = payload;
-        if (!resource || !event) {
+        if (!event) {
             console.verbose.error(`Invalid txAdminResourceEvent payload: ${JSON.stringify(payload)}`);
-        } else if (event === 'onResourceStarting') {
-            //Resource will start
+            return;
+        }
+        // onResourceListRefresh doesn't carry a resource name; all others do
+        if (event !== 'onResourceListRefresh' && !resource) {
+            console.verbose.error(`Invalid txAdminResourceEvent payload (missing resource): ${JSON.stringify(payload)}`);
+            return;
+        }
+
+        if (event === 'onResourceStarting') {
             this.resBooting = {
                 name: resource,
                 time: new Stopwatch(true),
-            }
+            };
+
         } else if (event === 'onResourceStart') {
-            //Resource started
             if (this.resBooting?.name === resource) {
                 this.resBootLog.push({
                     resource,
@@ -83,19 +102,58 @@ export default class FxResources {
                 if (resource !== 'monitor') {
                     console.verbose.warn(`Resource ${resource} started while ${this.resBooting?.name ?? 'unknown'} was booting`);
                 }
-                this.resBootLog.push({
-                    resource,
-                    duration: -1,
-                    tsBooted: Date.now(),
-                });
+                this.resBootLog.push({ resource, duration: -1, tsBooted: Date.now() });
             }
+            this.updateResourceStatus(resource, 'started');
+
+        } else if (event === 'onServerResourceStart') {
+            this.updateResourceStatus(resource, 'started');
+            // Once the monitor resource is running, request the full resource list so
+            // watchers (and the UI) get accurate path data without needing a page visit.
+            if (resource === 'monitor') {
+                txCore.fxRunner.sendCommand('txaReportResources', [], SYM_SYSTEM_AUTHOR);
+            }
+
+        } else if (event === 'onResourceStop' || event === 'onServerResourceStop') {
+            this.updateResourceStatus(resource, 'stopped');
+
+        } else if (event === 'onResourceListRefresh') {
+            // The resource list was refreshed (e.g. from a `refresh` command).
+            // Fetch fresh metadata for all resources.
+            txCore.fxRunner.sendCommand('txaReportResources', [], SYM_SYSTEM_AUTHOR);
         }
     }
 
 
     /**
-     * Returns the status of the resource boot process
+     * Update a single resource's status and push a socket notification.
+     * Only updates if the resource is already known; unknown resources get
+     * populated on the next full list fetch.
      */
+    private updateResourceStatus(name: string, status: 'started' | 'stopped') {
+        const existing = this.resourceMap.get(name);
+        if (existing && existing.status !== status) {
+            existing.status = status;
+            this.pushSocketData();
+        }
+    }
+
+
+    /**
+     * Push the current resource list + watcher configs to the resources socket room.
+     */
+    private pushSocketData() {
+        try {
+            const data: ResourcesRoomEventData = {
+                resources: this.getResourceList(),
+                watchers: txCore.resourceWatcher.getConfigs(),
+            };
+            txCore.webServer.webSocket.buffer('resources', data);
+        } catch (_) {
+            // webServer or room may not be ready yet during early boot; ignore
+        }
+    }
+
     public get bootStatus() {
         let elapsedSinceLast = null;
         if (this.resBootLog.length > 0) {
@@ -105,63 +163,47 @@ export default class FxResources {
         return {
             current: this.resBooting,
             elapsedSinceLast,
-        }
+        };
     }
 
-    /**
-     * Getter for the latest boot log
-     */
     public get latestBootLog() {
         return cloneDeep(this.resBooting ? this.resBootLog : this.prevBootLog);
     }
 
-
     /**
-     * Handle resource report.
-     * NOTE: replace this when we start tracking resource states internally
+     * Full update from the txaReportResources intercom response.
+     * Rebuilds the resource map and pushes the new state to the socket room.
      */
     tmpUpdateResourceList(resources: any[]) {
-        this.resourceReport = {
-            ts: new Date(),
-            resources,
+        this.resourceReport = { ts: new Date(), resources };
+
+        const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
+
+        this.resourceMap.clear();
+        let skipped = 0;
+        for (const res of resources) {
+            if (!res.name || !res.path) { skipped++; continue; }
+            const normalizedPath = path.normalize(res.path);
+            this.resourceMap.set(res.name, {
+                name: res.name,
+                displayName: safeDecode(String(res.name)),
+                status: res.status === 'started' ? 'started' : 'stopped',
+                path: res.path,
+                pathMissing: !fs.existsSync(normalizedPath),
+                version: res.version ? String(res.version).trim() : '',
+                author: res.author ? String(res.author).trim() : '',
+                description: res.description ? String(res.description).trim() : '',
+            });
         }
+        console.verbose.debug(`Loaded ${this.resourceMap.size} resources (${skipped} skipped).`);
+
+        this.pushSocketData();
+    }
+
+    /**
+     * Returns a snapshot of all known resources.
+     */
+    public getResourceList(): ResourceItem[] {
+        return Array.from(this.resourceMap.values());
     }
 };
-
-/*
-NOTE Resource load scenarios knowledge base:
-- resource lua error:
-    - `onResourceStarting` sourceRes
-    - print lua error
-    - `onResourceStart` sourceRes
-- resource lua crash/hang:
-    - `onResourceStarting` sourceRes
-    - crash/hang
-- dependency missing:
-    - `onResourceStarting` sourceRes
-    - does not get to `onResourceStart`
-- dependency success:
-    - `onResourceStarting` sourceRes
-    - `onResourceStarting` dependency
-    - `onResourceStart` dependency
-    - `onResourceStart` sourceRes
-- webpack/yarn fail:
-    - `onResourceStarting` sourceRes
-    - does not get to `onResourceStart`
-- webpack/yarn success:
-    - `onResourceStarting` chat
-    - `onResourceStarting` yarn
-    - `onResourceStart` yarn
-    - `onResourceStarting` webpack
-    - `onResourceStart` webpack
-    - server first tick
-    - wait for build
-    - `onResourceStarting` chat
-    - `onResourceStart` chat
-- ensure started resource:
-    - `onResourceStop` sourceRes
-    - `onResourceStarting` sourceRes
-    - `onResourceStart` sourceRes
-    - `onServerResourceStop` sourceRes
-    - `onServerResourceStart` sourceRes
-*/

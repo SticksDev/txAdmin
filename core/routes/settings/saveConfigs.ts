@@ -50,6 +50,7 @@ const cardNamesMap = {
     discord: 'Discord',
     'game-menu': 'Game Menu',
     'game-notifications': 'Game Notifications',
+    'resource-watcher': 'Resource Watcher',
 } as const;
 const validCardIds = Object.keys(cardNamesMap) as [keyof typeof cardNamesMap];
 

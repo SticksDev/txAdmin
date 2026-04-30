@@ -111,6 +111,29 @@ export default async function GetDiagnosticsData(ctx: AuthedCtx) {
             'FXServer': runtimeData.logger.statusFXServer,
             'Server': runtimeData.logger.statusServer,
         },
+        'Resource Watchers': (() => {
+            const configs = txCore.resourceWatcher.getConfigs();
+            const entries = Object.entries(configs);
+            if (entries.length === 0) return { 'Configured': 0 };
+            const enabled = entries.filter(([, c]) => c.enabled).length;
+            const active = entries.filter(([n]) => txCore.resourceWatcher.isWatching(n)).length;
+            const tripped = entries.filter(([n]) => txCore.resourceWatcher.isTripped(n)).length;
+            const perResource: Record<string, string> = {};
+            for (const [name, cfg] of entries) {
+                const watching = txCore.resourceWatcher.isWatching(name);
+                const tripped = txCore.resourceWatcher.isTripped(name);
+                const parts: string[] = [];
+                parts.push(cfg.enabled ? 'enabled' : 'disabled');
+                if (cfg.filterMode !== 'all') parts.push(`${cfg.filterMode} (${cfg.patterns.length} pattern${cfg.patterns.length !== 1 ? 's' : ''})`);
+                if (watching) parts.push('watching');
+                if (tripped) parts.push('TRIPPED');
+                perResource[name] = parts.join(' | ');
+            }
+            return {
+                Summary: { Configured: entries.length, Enabled: enabled, Active: active, Tripped: tripped },
+                ...perResource,
+            };
+        })(),
     };
 
     //Host data

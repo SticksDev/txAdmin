@@ -13,6 +13,7 @@ const console = consoleFactory(modulename);
 export type { WatcherConfig, WatcherConfigs };
 
 const CONFIG_FILE = 'resourceWatchers.json';
+const STALE_DISABLED_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * Module responsible for watching resource directories and restarting resources
@@ -56,6 +57,18 @@ export default class ResourceWatcher {
         try {
             const raw = await fsp.readFile(this.configFilePath, 'utf-8');
             this.watcherConfigs = JSON.parse(raw);
+
+            // Backfill disabledAt for disabled configs that predate this field
+            // so the 7-day stale clock starts from first boot with this code
+            let backfilled = false;
+            for (const cfg of Object.values(this.watcherConfigs)) {
+                if (!cfg.enabled && cfg.disabledAt === undefined) {
+                    cfg.disabledAt = Date.now();
+                    backfilled = true;
+                }
+            }
+            if (backfilled) await this.saveConfig();
+
             console.verbose.debug(
                 `Loaded ${Object.keys(this.watcherConfigs).length} watcher config(s).`,
             );
@@ -67,6 +80,25 @@ export default class ResourceWatcher {
             }
             this.watcherConfigs = {};
         }
+        await this.pruneStaleConfigs();
+    }
+
+    /**
+     * Removes watcher configs that have been disabled for longer than STALE_DISABLED_MS.
+     * Only called once at boot.
+     */
+    private async pruneStaleConfigs() {
+        const now = Date.now();
+        const stale = Object.entries(this.watcherConfigs).filter(
+            ([, cfg]) => !cfg.enabled && cfg.disabledAt !== undefined && now - cfg.disabledAt >= STALE_DISABLED_MS,
+        );
+        if (!stale.length) return;
+
+        for (const [name] of stale) {
+            delete this.watcherConfigs[name];
+            console.log(`[ResourceWatcher] Removed stale config for "${name}" (disabled for 7+ days).`);
+        }
+        await this.saveConfig();
     }
 
     private async saveConfig() {
@@ -251,6 +283,7 @@ export default class ResourceWatcher {
             // Persist enabled=false so the watcher stays off across server restarts
             if (this.watcherConfigs[resourceName]) {
                 this.watcherConfigs[resourceName].enabled = false;
+                this.watcherConfigs[resourceName].disabledAt = Date.now();
                 this.saveConfig().catch(() => {});
             }
 
@@ -286,6 +319,13 @@ export default class ResourceWatcher {
         resourceName: string,
         cfg: WatcherConfig,
     ): Promise<void> {
+        // Track when the watcher was disabled so stale cleanup knows how long it's been off
+        if (!cfg.enabled) {
+            // Preserve existing timestamp if already disabled; otherwise stamp now
+            cfg.disabledAt = this.watcherConfigs[resourceName]?.disabledAt ?? Date.now();
+        } else {
+            delete cfg.disabledAt;
+        }
         this.watcherConfigs[resourceName] = cfg;
         await this.saveConfig();
 

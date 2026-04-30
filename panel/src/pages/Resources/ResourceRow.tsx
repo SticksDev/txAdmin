@@ -86,7 +86,7 @@ export default function ResourceRow({
                     disabled={!canEdit}
                     title={
                         isWatched
-                            ? 'Watching for file changes — click to configure'
+                            ? 'Watching for file changes - click to configure'
                             : 'Click to set up file watching'
                     }
                 >

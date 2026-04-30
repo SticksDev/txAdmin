@@ -1,7 +1,6 @@
 export { default as diagnostics_sendReport } from './diagnostics/sendReport';
 export { default as diagnostics_getDiagnostics } from './diagnostics/getDiagnostics';
 export { default as intercom } from './intercom.js';
-export { default as resources } from './resources.js';
 export { default as perfChart } from './perfChart';
 export { default as playerDrops } from './playerDrops';
 export { default as systemLogs } from './systemLogs';

@@ -20,11 +20,6 @@ type ResourceEventType = {
     | 'onServerResourceStop';
 };
 
-type ResourceReportType = {
-    ts: Date,
-    resources: any[]
-}
-
 type ResPendingStartState = {
     name: string;
     time: Stopwatch;
@@ -44,9 +39,6 @@ type ResBootLogEntry = {
  * - Individual start/stop events from FD3
  */
 export default class FxResources {
-    // Legacy: kept for the resources.js legacy page
-    public resourceReport?: ResourceReportType;
-
     // Stateful resource map: name -> ResourceItem
     private resourceMap = new Map<string, ResourceItem>();
 
@@ -175,8 +167,6 @@ export default class FxResources {
      * Rebuilds the resource map and pushes the new state to the socket room.
      */
     tmpUpdateResourceList(resources: any[]) {
-        this.resourceReport = { ts: new Date(), resources };
-
         const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
 
         this.resourceMap.clear();

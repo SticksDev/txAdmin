@@ -30,7 +30,6 @@ export default () => {
     router.get('/legacy/adminManager', webAuthMw, routes.adminManager_page);
     router.get('/legacy/cfgEditor', webAuthMw, routes.cfgEditor_page);
     router.get('/legacy/masterActions', webAuthMw, routes.masterActions_page);
-    router.get('/legacy/resources', webAuthMw, routes.resources);
     router.get('/legacy/serverLog', webAuthMw, routes.serverLog);
     router.get('/legacy/whitelist', webAuthMw, routes.whitelist_page);
     router.get('/legacy/setup', webAuthMw, routes.setup_get);

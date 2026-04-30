@@ -42,7 +42,7 @@ export default function ResourceGroupCard({
 
     if (visibleResources.length === 0) return null;
 
-    const watchedCount = visibleResources.filter((r) => watchers[r.name]?.enabled).length;
+    const watchedCount = visibleResources.filter((r) => watchers[r.displayName]?.enabled).length;
 
     return (
         <div className='border rounded-lg overflow-hidden'>
@@ -73,7 +73,7 @@ export default function ResourceGroupCard({
                         <ResourceRow
                             key={r.name}
                             resource={r}
-                            watcherConfig={watchers[r.name]}
+                            watcherConfig={watchers[r.displayName]}
                             canEdit={canEdit}
                             onWatchClick={onWatchClick}
                             onAction={onAction}

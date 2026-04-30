@@ -279,7 +279,7 @@ export default function ResourcesPage() {
                 displayName={watchDialogResource?.displayName ?? null}
                 currentConfig={
                     watchDialogResource
-                        ? (watchers[watchDialogResource.name] ?? null)
+                        ? (watchers[watchDialogResource.displayName] ?? null)
                         : null
                 }
                 onClose={handleWatchDialogClose}

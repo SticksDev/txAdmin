@@ -80,7 +80,7 @@ export default function ResourceRow({
                     size='sm'
                     className={cn(
                         'h-7 gap-1.5 px-2',
-                        isWatched && 'border-info text-info hover:bg-info/10',
+                        isWatched && 'border-info text-info hover:bg-info/10 hover:text-info',
                     )}
                     onClick={() => onWatchClick(resource)}
                     disabled={!canEdit}

@@ -139,7 +139,39 @@ export default class ResourceWatcher {
                 this.resourcePaths.set(res.name, res.path);
             }
         }
+        this.pruneOrphanedConfigs(resources);
         this.restartWatchers();
+    }
+
+    /**
+     * Removes watcher configs for resources that are no longer in the reported list.
+     * Watcher config keys use decoded names; FXServer names may be URL-encoded, so decode before comparing.
+     */
+    private async pruneOrphanedConfigs(resources: Array<{ name: string }>) {
+        const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
+        const knownNames = new Set(resources.map((r) => safeDecode(r.name)));
+        const orphaned = Object.keys(this.watcherConfigs).filter((name) => !knownNames.has(name));
+        if (!orphaned.length) return;
+
+        for (const name of orphaned) {
+            delete this.watcherConfigs[name];
+            this.trippedWatchers.delete(name);
+            this.restartHistory.delete(name);
+            // Active watchers are torn down by stopAllWatchers() called before this in restartWatchers,
+            // but clean up just in case this is called independently
+            const watcher = this.activeWatchers.get(name);
+            if (watcher) {
+                watcher.close().catch(() => {});
+                this.activeWatchers.delete(name);
+            }
+            const timer = this.restartTimers.get(name);
+            if (timer) {
+                clearTimeout(timer);
+                this.restartTimers.delete(name);
+            }
+            console.log(`[ResourceWatcher] Removed config for "${name}" - resource no longer in server list.`);
+        }
+        await this.saveConfig();
     }
 
     private stopAllWatchers() {

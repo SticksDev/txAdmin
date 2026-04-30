@@ -8,6 +8,8 @@ import {
     Loader2Icon,
     FilterXIcon,
     FolderXIcon,
+    Settings2Icon,
+    XIcon,
 } from 'lucide-react';
 import { useAtomValue } from 'jotai';
 import { fxRunnerStateAtom } from '@/hooks/status';
@@ -29,6 +31,7 @@ import { useSetResourcesData, useResourcesData } from './resourcesHooks';
 import { groupResources, DEFAULT_RESOURCES } from './resourcesUtils';
 import ResourceGroupCard from './ResourceGroupCard';
 import WatcherDialog from './WatcherDialog';
+import ResourcesSettings from './ResourcesSettings';
 import type {
     ResourceItem,
     WatcherConfig,
@@ -49,6 +52,7 @@ export default function ResourcesPage() {
     const [onlyStopped, setOnlyStopped] = useState(false);
     const [allCollapsed, setAllCollapsed] = useState(false);
     const [collapseKey, setCollapseKey] = useState(0);
+    const [settingsMode, setSettingsMode] = useState(false);
     const [watchDialogResource, setWatchDialogResource] = useState<{
         name: string;
         displayName: string;
@@ -196,20 +200,48 @@ export default function ResourcesPage() {
 
     return (
         <div className='w-full mb-10'>
-            <PageHeader icon={<ServerIcon />} title='Resources'>
-                <Button
-                    variant='outline'
-                    size='sm'
-                    className='gap-1.5'
-                    onClick={handleRefresh}
-                    disabled={!fxRunnerState.isChildAlive}
-                >
-                    <RefreshCwIcon className='size-4' />
-                    Reload &amp; Refresh
-                </Button>
+            <PageHeader
+                icon={settingsMode ? <Settings2Icon /> : <ServerIcon />}
+                title={settingsMode ? 'Resources Settings' : 'Resources'}
+            >
+                {settingsMode ? (
+                    <Button
+                        variant='outline'
+                        size='sm'
+                        className='gap-1.5'
+                        onClick={() => setSettingsMode(false)}
+                    >
+                        <XIcon className='size-4' />
+                        Close Settings
+                    </Button>
+                ) : (
+                    <div className='flex items-center gap-2'>
+                        <Button
+                            variant='outline'
+                            size='sm'
+                            className='gap-1.5'
+                            onClick={handleRefresh}
+                            disabled={!fxRunnerState.isChildAlive}
+                        >
+                            <RefreshCwIcon className='size-4' />
+                            Reload &amp; Refresh
+                        </Button>
+                        <Button
+                            variant='outline'
+                            size='sm'
+                            className='gap-1.5'
+                            onClick={() => setSettingsMode(true)}
+                        >
+                            <Settings2Icon className='size-4' />
+                        </Button>
+                    </div>
+                )}
             </PageHeader>
 
-            <div className='px-4 space-y-3'>
+            {settingsMode ? (
+                <ResourcesSettings watchers={watchers} />
+            ) : (
+            <div className='px-4 space-y-3 animate-in fade-in slide-in-from-left-4 duration-200'>
                 <div className='flex flex-wrap gap-x-4 gap-y-2 items-center'>
                     <div className='relative flex-1 min-w-48'>
                         <SearchIcon className='absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none' />
@@ -273,6 +305,7 @@ export default function ResourcesPage() {
 
                 {content}
             </div>
+            )}
 
             <WatcherDialog
                 resourceName={watchDialogResource?.name ?? null}
